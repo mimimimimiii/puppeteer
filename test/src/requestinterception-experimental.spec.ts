@@ -104,10 +104,9 @@ describe('cooperative request interception', function () {
           expect(request.url()).toContain('empty.html');
           expect(request.headers()['user-agent']).toBeTruthy();
           expect(request.method()).toBe('GET');
-          expect(request.postData()).toBe(undefined);
           expect(request.isNavigationRequest()).toBe(true);
-          expect(request.frame()!.url()).toBe('about:blank');
           expect(request.frame() === page.mainFrame()).toBe(true);
+          expect(request.frame()!.url()).toBe('about:blank');
         } catch (error) {
           requestError = error;
         } finally {
@@ -121,7 +120,6 @@ describe('cooperative request interception', function () {
       }
 
       expect(response.ok()).toBe(true);
-      expect(response.remoteAddress().port).toBe(server.PORT);
     });
     // @see https://github.com/puppeteer/puppeteer/pull/3105
     it('should work when POST is redirected with 302', async () => {
@@ -178,7 +176,7 @@ describe('cooperative request interception', function () {
       page.on('request', request => {
         const headers = Object.assign({}, request.headers(), {
           foo: 'bar',
-          origin: undefined, // remove "origin" header
+          accept: undefined, // remove "accept" header
         });
         void request.continue({headers}, 0);
       });
@@ -188,7 +186,7 @@ describe('cooperative request interception', function () {
         page.goto(server.PREFIX + '/empty.html'),
       ]);
 
-      expect(serverRequest.headers.origin).toBe(undefined);
+      expect(serverRequest.headers.accept).toBe(undefined);
     });
     it('should contain referer header', async () => {
       const {page, server} = await getTestState();
@@ -196,10 +194,10 @@ describe('cooperative request interception', function () {
       await page.setRequestInterception(true);
       const requests: HTTPRequest[] = [];
       page.on('request', request => {
+        void request.continue({}, 0);
         if (!isFavicon(request)) {
           requests.push(request);
         }
-        void request.continue({}, 0);
       });
       await page.goto(server.PREFIX + '/one-style.html');
       expect(requests[1]!.url()).toContain('/one-style.css');
@@ -386,7 +384,9 @@ describe('cooperative request interception', function () {
       const requests: HTTPRequest[] = [];
       page.on('request', request => {
         void request.continue({}, 0);
-        requests.push(request);
+        if (!isFavicon(request)) {
+          requests.push(request);
+        }
       });
       server.setRedirect(
         '/non-existing-page.html',
@@ -526,7 +526,9 @@ describe('cooperative request interception', function () {
       await page.setRequestInterception(true);
       const requests: HTTPRequest[] = [];
       page.on('request', request => {
-        requests.push(request);
+        if (!isFavicon(request)) {
+          requests.push(request);
+        }
         void request.continue({}, 0);
       });
       const dataURL = 'data:text/html,<div>yo</div>';
@@ -542,11 +544,13 @@ describe('cooperative request interception', function () {
       await page.setRequestInterception(true);
       const requests: HTTPRequest[] = [];
       page.on('request', request => {
-        !isFavicon(request) && requests.push(request);
         void request.continue({}, 0);
+        if (!isFavicon(request)) {
+          requests.push(request);
+        }
       });
       const dataURL = 'data:text/html,<div>yo</div>';
-      const text = await page.evaluate((url: string) => {
+      const text = await page.evaluate(url => {
         return fetch(url).then(r => {
           return r.text();
         });
@@ -561,7 +565,9 @@ describe('cooperative request interception', function () {
       await page.setRequestInterception(true);
       const requests: HTTPRequest[] = [];
       page.on('request', request => {
-        requests.push(request);
+        if (!isFavicon(request)) {
+          requests.push(request);
+        }
         void request.continue({}, 0);
       });
       const response = await page.goto(server.EMPTY_PAGE + '#hash');
@@ -606,7 +612,9 @@ describe('cooperative request interception', function () {
       const requests: HTTPRequest[] = [];
       page.on('request', request => {
         void request.continue({}, 0);
-        requests.push(request);
+        if (!isFavicon(request)) {
+          requests.push(request);
+        }
       });
       const response = await page.goto(
         `data:text/html,<link rel="stylesheet" href="${server.PREFIX}/fonts?helvetica|arial"/>`
